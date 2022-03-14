@@ -1,0 +1,91 @@
+,Class,Accuracy,Model
+0,Not often,65.93554162936437,XGBoost
+1,Often,61.7169373549884,XGBoost
+2,Total,63.864205969469126,XGBoost
+3,Not often,64.59265890778873,XGBoost
+4,Often,61.11368909512761,XGBoost
+5,Total,62.88448393711552,XGBoost
+6,Not often,64.54789615040286,XGBoost
+7,Often,61.11368909512761,XGBoost
+8,Total,62.861699703804966,XGBoost
+9,Not often,66.02506714413607,XGBoost
+10,Often,62.92343387470998,XGBoost
+11,Total,64.5021645021645,XGBoost
+12,Not often,65.35362578334826,XGBoost
+13,Often,62.87703016241299,XGBoost
+14,Total,64.13761676919572,XGBoost
+15,Not often,66.47269471799463,XGBoost
+16,Often,62.08816705336427,XGBoost
+17,Total,64.31989063568011,XGBoost
+18,Not often,65.3983885407341,XGBoost
+19,Often,61.90255220417633,XGBoost
+20,Total,63.68193210298474,XGBoost
+21,Not often,65.21933751119069,XGBoost
+22,Often,62.969837587006964,XGBoost
+23,Total,64.11483253588517,XGBoost
+24,Not often,65.21933751119069,XGBoost
+25,Often,62.598607888631086,XGBoost
+26,Total,63.93255866940078,XGBoost
+27,Not often,63.69740376007162,XGBoost
+28,Often,62.27378190255221,XGBoost
+29,Total,62.99840510366826,XGBoost
+0,Not often,66.65174574753804,Random Forest
+1,Often,60.32482598607889,Random Forest
+2,Total,63.545226703121436,Random Forest
+3,Not often,66.33840644583707,Random Forest
+4,Often,60.04640371229698,Random Forest
+5,Total,63.2490316700843,Random Forest
+6,Not often,66.24888093106536,Random Forest
+7,Often,61.29930394431554,Random Forest
+8,Total,63.81863750284803,Random Forest
+9,Not often,65.44315129811996,Random Forest
+10,Often,61.25290023201856,Random Forest
+11,Total,63.3857370699476,Random Forest
+12,Not often,66.33840644583707,Random Forest
+13,Often,60.8816705336427,Random Forest
+14,Total,63.65914786967418,Random Forest
+15,Not often,65.66696508504923,Random Forest
+16,Often,61.53132250580047,Random Forest
+17,Total,63.63636363636363,Random Forest
+18,Not often,64.816472694718,Random Forest
+19,Often,61.7169373549884,Random Forest
+20,Total,63.294600136705405,Random Forest
+21,Not often,66.24888093106536,Random Forest
+22,Often,60.51044083526682,Random Forest
+23,Total,63.43130553656869,Random Forest
+24,Not often,65.62220232766339,Random Forest
+25,Often,60.32482598607889,Random Forest
+26,Total,63.021189336978814,Random Forest
+27,Not often,64.63742166517457,Random Forest
+28,Often,61.11368909512761,Random Forest
+29,Total,62.907268170426065,Random Forest
+0,Not often,65.98030438675022,Neural network
+1,Often,59.48955916473317,Neural network
+2,Total,62.79334700387332,Neural network
+3,Not often,70.81468218442257,Neural network
+4,Often,53.735498839907194,Neural network
+5,Total,62.428799270904534,Neural network
+6,Not often,62.08594449418084,Neural network
+7,Often,64.8723897911833,Neural network
+8,Total,63.45408976987924,Neural network
+9,Not often,61.68307967770814,Neural network
+10,Often,64.64037122969837,Neural network
+11,Total,63.13511050353156,Neural network
+12,Not often,67.23366159355416,Neural network
+13,Often,58.515081206496525,Neural network
+14,Total,62.95283663704716,Neural network
+15,Not often,68.44225604297225,Neural network
+16,Often,57.16937354988399,Neural network
+17,Total,62.907268170426065,Neural network
+18,Not often,55.95344673231871,Neural network
+19,Often,70.30162412993039,Neural network
+20,Total,62.99840510366826,Neural network
+21,Not often,68.75559534467324,Neural network
+22,Often,55.91647331786543,Neural network
+23,Total,62.45158350421508,Neural network
+24,Not often,70.00895255147717,Neural network
+25,Often,54.988399071925755,Neural network
+26,Total,62.633857370699474,Neural network
+27,Not often,66.6965085049239,Neural network
+28,Often,58.2830626450116,Neural network
+29,Total,62.56550467076782,Neural network
