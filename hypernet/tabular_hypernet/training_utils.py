@@ -232,7 +232,7 @@ def train_slow_step(hypernet, optimizer, criterion, loaders, data_size, epochs, 
     return max(test_accs), test_loss[np.argmax(test_accs)]
 
 
-def test_model(hypernet, testloader, device='cuda:0', verbose=False):
+def test_model(hypernet, testloader, device='cpu', verbose=False):
     criterion = torch.nn.CrossEntropyLoss()
     correct = 0
     loss = 0
@@ -258,6 +258,7 @@ def test_model(hypernet, testloader, device='cuda:0', verbose=False):
 
 def train_model(hypernet, optimizer, criterion, trainloader, epochs, device='cpu'):
     mask_idx = 0
+    masks = None
     with trange(epochs) as t:
         for _ in t:
             hypernet.train()
@@ -269,10 +270,11 @@ def train_model(hypernet, optimizer, criterion, trainloader, epochs, device='cpu
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 
-                masks = []
-                for _ in range(len(inputs)):
-                    masks.append(hypernet.test_mask[mask_idx])
-                masks = torch.stack(masks).to(device)
+                masks = hypernet.test_mask[mask_idx].repeat(len(inputs), 1)
+                # for _ in range(len(inputs)):
+                #     masks.append(hypernet.test_mask[mask_idx])
+                # masks = torch.stack(masks).to(device)
+
                 mask_idx = (mask_idx+1) % len(hypernet.test_mask)
 
                 optimizer.zero_grad()
@@ -281,3 +283,33 @@ def train_model(hypernet, optimizer, criterion, trainloader, epochs, device='cpu
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
+
+
+class GenericDataset(torch.utils.data.IterableDataset):
+    def __init__(self, data, shuffle: bool=False, samples_no: int=None):
+        samples = samples_no or len(data[0])
+        self.indices = np.arange(samples)
+        self.shuffle = True
+        if shuffle:
+            self.indices = np.random.permutation(self.indices)
+        self.index = 0
+        self.max_samples = samples
+        self.data_x = data[0].to(torch.float32)
+        self.data_y = data[1]
+
+    def __iter__(self):
+        if self.shuffle:
+            self.indices = np.random.permutation(self.indices)
+        while self.index < self.max_samples:
+            _idx = self.indices[self.index]
+            yield self.data_x[_idx], self.data_y[_idx]
+            self.index += 1
+    
+    def __len__(self):
+        return self.data_x.shape[0]
+    
+def get_dataloader(X, y, size=None, batch_size=32):
+    train_dataset = GenericDataset((X, y), size)
+    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=1)
+    
+    return trainloader
