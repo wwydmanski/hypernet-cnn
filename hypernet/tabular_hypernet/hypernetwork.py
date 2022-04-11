@@ -2,6 +2,7 @@
 import torch
 import numpy as np
 from .modules import InsertableNet
+from .training_utils import get_dataloader, train_model
 
 torch.set_default_dtype(torch.float32)
 
@@ -135,3 +136,48 @@ class Hypernetwork(torch.nn.Module):
 
         out = self.out(out)
         return out
+
+
+class SklearnInterface:
+    def __init__(self, network, batch_size=128, epochs=10, lr=3e-4, device='cuda:0'):
+        self.network = network.to(device)
+        self.optimizer = torch.optim.Adam(network.parameters(), lr=lr)
+        self.criterion = torch.nn.CrossEntropyLoss()
+        self.batch_size = batch_size
+        self.epochs = epochs
+    
+    def fit(self, X, y):
+        try:
+            X = torch.from_numpy(X).to(torch.float32)
+            y = torch.from_numpy(y).to(torch.long)
+        except TypeError:
+            pass
+        train_data = get_dataloader(X, y, batch_size=128)
+        train_model(self.network, self.optimizer, self.criterion, train_data, self.epochs, self.network.device)
+                    
+    def predict(self, X):
+        res = []
+        batch_size = 32
+        try:
+            X = torch.from_numpy(X).to(torch.float32)
+        except TypeError:
+            pass
+
+        for i in range(0, len(X), batch_size):
+            predictions = self.network(X[i:i+batch_size].to(torch.float32).to(self.network.device)).cpu().detach().numpy()
+            predictions = np.argmax(predictions, axis=1)
+            res.append(predictions)
+        return np.concatenate(res)
+    
+    def predict_proba(self, X):
+        res = []
+        batch_size = 32
+        try:
+            X = torch.from_numpy(X).to(torch.float32).to(self.network.device)
+        except TypeError:
+            pass
+        
+        for i in range(0, len(X), batch_size):
+            predictions = self.network(X[i:i+batch_size].to(torch.float32).to(self.network.device)).cpu().detach().numpy()
+            res.append(predictions)
+        return np.concatenate(res)
