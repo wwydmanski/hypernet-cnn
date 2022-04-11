@@ -506,13 +506,16 @@ def train_slow_step(hypernet, optimizer, criterion, loaders, data_size, epochs, 
                     experiment=None,
                     tag="slow-step-hypernet", 
                     device='cuda:0', 
+                    project_name="hypernetwork",
                     test_every=5):
     """ Train hypernetwork using slow step method - use the same mask for a whole batch, change it once per iteration."""
     if experiment is None:
-        experiment = Experiment(api_key=os.environ.get("COMET_KEY"), project_name="hypernetwork", display_summary_level=0)
+        experiment = Experiment(api_key=os.environ.get("COMET_KEY"), project_name=project_name, display_summary_level=0)
     experiment.add_tag(tag)
     experiment.log_parameter("test_nodes", hypernet.test_nodes)
     experiment.log_parameter("mask_size", hypernet.mask_size)
+    experiment.log_parameter("node_hidden_size", hypernet.node_hidden_size)
+    experiment.log_parameter("lr", optimizer.defaults['lr'])
     experiment.log_parameter("training_size", data_size)
     experiment.log_parameter("masks_no", masks_no)
     experiment.log_parameter("max_epochs", epochs)
