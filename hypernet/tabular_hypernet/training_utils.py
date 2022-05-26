@@ -271,9 +271,6 @@ def train_model(hypernet, optimizer, criterion, trainloader, epochs, device='cpu
                 labels = labels.to(device)
                 
                 masks = hypernet.test_mask[mask_idx].repeat(len(inputs), 1)
-                # for _ in range(len(inputs)):
-                #     masks.append(hypernet.test_mask[mask_idx])
-                # masks = torch.stack(masks).to(device)
 
                 mask_idx = (mask_idx+1) % len(hypernet.test_mask)
 
@@ -284,6 +281,20 @@ def train_model(hypernet, optimizer, criterion, trainloader, epochs, device='cpu
                 loss.backward()
                 optimizer.step()
 
+def basic_train_loop(network, optimizer, criterion, trainloader, epochs, device="cpu"):
+    for _ in range(epochs):
+        network.train()
+        for _, data in enumerate(trainloader):
+            inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            optimizer.zero_grad()
+
+            outputs = network(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
 class GenericDataset(torch.utils.data.IterableDataset):
     def __init__(self, data, shuffle: bool=False, samples_no: int=None):
@@ -307,6 +318,12 @@ class GenericDataset(torch.utils.data.IterableDataset):
     
     def __len__(self):
         return self.data_x.shape[0]
+    
+    
+# class OversamplingDataset(GenericDataset):
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(self, *args, **kwargs)
+#         fractions = 
     
 def get_dataloader(X, y, size=None, batch_size=32):
     train_dataset = GenericDataset((X, y), size)

@@ -2,3 +2,8 @@
 data/
 .ipynb_checkpoints/
 __pycache__
+*.csv
+**/*.csv
+**/*egg-info
+**/log.txt
+node
