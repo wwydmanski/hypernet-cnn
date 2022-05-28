@@ -1,3 +1,4 @@
+
 import torch
 import numpy as np
 from .modules import InsertableNet
@@ -115,6 +116,7 @@ class Hypernetwork(torch.nn.Module):
             self._retrained = True
             if self.mode == "slow_step":
                 return self._slow_step_training(data, mask)
+
             if mask is None:
                 mask = self._create_mask(len(data))
 
@@ -184,6 +186,3 @@ class Hypernetwork(torch.nn.Module):
 
         out = self.out(out)
         return out
-
-
-

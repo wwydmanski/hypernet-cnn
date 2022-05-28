@@ -146,7 +146,7 @@ def train_slow_step(hypernet, optimizer, criterion, loaders, data_size, epochs, 
     """ Train hypernetwork using slow step method - use the same mask for a whole batch, change it once per iteration."""
     if experiment is None:
         experiment = Experiment(api_key=os.environ.get("COMET_KEY"), project_name=project_name, display_summary_level=0)
-    experiment.add_tag(tag)
+        experiment.add_tag(tag)
     experiment.log_parameter("test_nodes", hypernet.test_nodes)
     experiment.log_parameter("mask_size", hypernet.mask_size)
     experiment.log_parameter("node_hidden_size", hypernet.node_hidden_size)
@@ -157,16 +157,11 @@ def train_slow_step(hypernet, optimizer, criterion, loaders, data_size, epochs, 
     experiment.log_parameter("check_val_every_n_epoch", test_every)
 
     trainloader, testloader = loaders
-    train_loss = []
     test_loss = []
     test_accs = []
     mask_idx = 0
     with trange(epochs) as t:
         for epoch in t:
-            total_loss = 0
-            running_loss = 0.0
-            correct = 0
-            total = 0
             hypernet.train()
             for i, data in enumerate(trainloader):
                 try:
@@ -176,29 +171,15 @@ def train_slow_step(hypernet, optimizer, criterion, loaders, data_size, epochs, 
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 
-                masks = []
-                for i in range(len(inputs)):
-                    masks.append(hypernet.test_mask[mask_idx])
+                masks = hypernet.test_mask[mask_idx].view(1,-1)
                 masks = torch.stack(masks).to(device)
                 mask_idx = (mask_idx+1) % len(hypernet.test_mask)
 
                 optimizer.zero_grad()
-
                 outputs = hypernet(inputs, masks)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-
-                correct += (outputs.argmax(1)==labels).float().sum()
-                total += outputs.shape[0]
-                running_loss += loss.item()
-                train_loss.append(loss.item())
-                if i>0 and i % 100 == 0:
-                    total_loss += running_loss/100
-
-                    running_loss = 0.0
-                    correct = 0
-                    total=0
 
             total_loss = 0
             correct = 0
@@ -271,7 +252,6 @@ def train_model(hypernet, optimizer, criterion, trainloader, epochs, device='cpu
                 labels = labels.to(device)
                 
                 masks = hypernet.test_mask[mask_idx].repeat(len(inputs), 1)
-
                 mask_idx = (mask_idx+1) % len(hypernet.test_mask)
 
                 optimizer.zero_grad()
