@@ -49,27 +49,29 @@ class DropoutNetwork(torch.nn.Module):
         return out
 
     
-class InsertableNet(SimpleNetwork):
-    def __init__(self, weights, inp_size, out_size, layers=[10]):
-        super().__init__(inp_size, layers)
-        input_w_size = inp_size*layers[0]
-        input_b_size = layers[0]
-
-        hidden_w_size = layers[0]*out_size
-        hidden_b_size = out_size
-
-        self.inp_weights = weights[:input_w_size].reshape((layers[0], inp_size))
-        self.inp_bias = weights[input_w_size:input_w_size+input_b_size]
-
-        self.output_weights = weights[input_w_size+input_b_size:input_w_size+input_b_size+hidden_w_size].reshape((out_size, layers[0]))
-        self.output_bias = weights[input_w_size+input_b_size+hidden_w_size:input_w_size+input_b_size+hidden_w_size+hidden_b_size]
-        self.out_act = torch.nn.Sigmoid()
+class InsertableNet(torch.nn.Module):
+    def __init__(self, weights, shape=[(784, 10), (10, 10)]):
+        super().__init__()
+        self.layers = []
+        self._offset = 0
         
+        for layer in shape:
+            _w_size = layer[0]*layer[1]
+            _b_size = layer[1]
+            
+            _l = (weights[self._offset:self._offset+_w_size].reshape((layer[1], layer[0])),
+                  weights[self._offset+_w_size:self._offset+_w_size+_b_size])
+            self._offset += _w_size+_b_size
+
+            self.layers.append(_l)
+    
     def forward(self, data):
-        out = F.linear(data, self.inp_weights, self.inp_bias)
-        out = self.relu(out)
-        out = F.linear(out, self.output_weights, self.output_bias)
-        return out
+        out = data
+        for layer in self.layers[:-1]:
+            out = F.linear(out, layer[0], layer[1])
+            out = F.relu(out)
+
+        return F.linear(out, self.layers[-1][0], self.layers[-1][1])
     
     
 class MaskedNetwork(SimpleNetwork):

@@ -2,69 +2,76 @@
 import torch
 import numpy as np
 from .modules import InsertableNet
-from .training_utils import get_dataloader, train_model
+import enum
+import torch.nn.functional as F
 
 torch.set_default_dtype(torch.float32)
 
+class TrainingModes(enum.Enum):
+    SLOW_STEP = "slow-step"
+    CARTHESIAN = "carth"
 
 class Hypernetwork(torch.nn.Module):
     def __init__(
         self,
-        inp_size=784,
-        out_size=10,
-        mask_size=20,
-        node_hidden_size=20,
-        layers=[64, 256, 128],
+        architecture=torch.nn.Sequential(torch.nn.Linear(784, 128), 
+                        torch.nn.ReLU(),
+                        torch.nn.Linear(128, 64),
+                        torch.nn.ReLU(),
+                        torch.nn.Linear(64, 64)
+                       ),
+        target_architecture=[(20, 10), (10, 10)],
         test_nodes=100,
-        mode="slow_step",
+        mode=TrainingModes.SLOW_STEP,
         device="cuda:0",
     ):
         """ Initialize a hypernetwork.
         Args:
-            inp_size - size of input
+            target_inp_size - size of input
             out_size - size of output
-            mask_size - size of mask
-            node_hidden_size - size of hidden layer in target network
             layers - list of hidden layer sizes
             test_nodes - number of test nodes
             device - device to use
         """
         super().__init__()
-        self.target_outsize = out_size
+        self.target_outsize = target_architecture[-1][-1]
+        self.mask_size = target_architecture[0][0]
+        self.target_architecture = target_architecture
         self.device = device
         self.mode = mode
 
-        self.mask_size = mask_size
-        self.input_size = inp_size
-        self.node_hidden_size = node_hidden_size
+        self.out_size = self.calculate_outdim(target_architecture)
 
-        input_w_size = mask_size * node_hidden_size
-        input_b_size = node_hidden_size
-
-        hidden_w_size = node_hidden_size * out_size
-        hidden_b_size = out_size
-
-        self.out_size = input_w_size + input_b_size + hidden_w_size + hidden_b_size
-
-        self.input = torch.nn.Linear(inp_size, layers[0])
-        self.hidden1 = torch.nn.Linear(layers[0], layers[1])
-        self.hidden2 = torch.nn.Linear(layers[1], layers[2])
-        self.out = torch.nn.Linear(layers[2], self.out_size)
-
+        self.model = architecture.to('cpu')
+        gen = self.model.parameters()
+        self.input_size = next(gen).size()[1]
+        out_dim = self.model(torch.rand(1, self.input_size)).shape
+        print(out_dim)
+        output_layer = torch.nn.Linear(out_dim[1], self.out_size)
+        self.model.add_module("output_layer", output_layer)
+        self.model = self.model.to(device)
+        
         self.dropout = torch.nn.Dropout()
 
         self.relu = torch.relu
-        self.template = np.zeros(inp_size)
+        self.template = np.zeros(self.input_size)
         self.test_nodes = test_nodes
         self.test_mask = self._create_mask(test_nodes)
 
         self._retrained = True
         self._test_nets = None
+        
+    def calculate_outdim(self, architecture):
+        weights = 0
+        for layer in architecture:
+            weights += layer[0]*layer[1]+layer[1]
+        return weights
 
     def to(self, device):
         super().to(device)
         self.device = device
         self.test_mask = self._create_mask(self.test_nodes)
+        self.model = self.model.to(device)
         return self
 
     def _slow_step_training(self, data, mask):
@@ -72,9 +79,7 @@ class Hypernetwork(torch.nn.Module):
         mask = mask[0].to(torch.bool)
         nn = InsertableNet(
             weights[0],
-            self.mask_size,
-            self.target_outsize,
-            layers=[self.node_hidden_size],
+            self.target_architecture,
         )
 
         masked_data = data[:, mask]
@@ -95,9 +100,7 @@ class Hypernetwork(torch.nn.Module):
             if recalculate[i]:
                 nn = InsertableNet(
                     weights[i],
-                    self.mask_size,
-                    self.target_outsize,
-                    layers=[self.node_hidden_size],
+                    self.target_architecture,
                 )
             masked_data = data[i, mask[i]]
             res[i] = nn(masked_data)
@@ -114,7 +117,7 @@ class Hypernetwork(torch.nn.Module):
         """
         if self.training:
             self._retrained = True
-            if self.mode == "slow_step":
+            if self.mode == TrainingModes.SLOW_STEP or self.mode == TrainingModes.CARTHESIAN:
                 return self._slow_step_training(data, mask)
 
             if mask is None:
@@ -138,6 +141,8 @@ class Hypernetwork(torch.nn.Module):
             masked_data = data[:, mask[i]]
             res += nn(masked_data)
         res /= len(mask)
+        if res.shape[1] > 1:
+            res = F.softmax(res, 1)
         return res
 
     def _get_test_nets(self):
@@ -153,20 +158,26 @@ class Hypernetwork(torch.nn.Module):
         for i in range(len(mask)):
             nn = InsertableNet(
                 weights[i],
-                self.mask_size,
-                self.target_outsize,
-                layers=[self.node_hidden_size],
+                self.target_architecture,
             )
             nets.append(nn)
         return nets
 
+    @staticmethod
+    def random_choice_noreplace2(l, n_sample, num_draw):
+        '''
+        l: 1-D array or list
+        n_sample: sample size for each draw
+        num_draw: number of draws
+
+        Intuition: Randomly generate numbers, get the index of the smallest n_sample number for each row.
+        '''
+        l = np.array(l)
+        return l[np.argpartition(np.random.rand(num_draw,len(l)), n_sample-1,axis=-1)[:,:n_sample]]
+    
     def _create_mask(self, count):
-        masks = np.array(
-            [
-                np.random.choice((len(self.template)), self.mask_size, False)
-                for _ in range(count)
-            ]
-        )
+        # masks = np.random.choice((len(self.template)), (count, self.mask_size), False)
+        masks = Hypernetwork.random_choice_noreplace2(np.arange(len(self.template)), self.mask_size, count)
         tmp = np.array([self.template.copy() for _ in range(count)])
         for i, mask in enumerate(masks):
             tmp[i, mask] = 1
@@ -174,15 +185,6 @@ class Hypernetwork(torch.nn.Module):
         return mask
 
     def craft_network(self, mask):
-        out = self.input(mask)
-        out = self.relu(out)
-
-        out = self.hidden1(out)
-        out = self.relu(out)
-        out = self.dropout(out)
-
-        out = self.hidden2(out)
-        out = self.relu(out)
-
-        out = self.out(out)
+        out = self.model(mask)
+        # out = self.output_layer(out)
         return out

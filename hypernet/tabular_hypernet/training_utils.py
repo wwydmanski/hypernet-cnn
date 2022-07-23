@@ -9,6 +9,8 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import numpy as np
 import torch.utils.data as data_utils
+from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score
+from .hypernetwork import TrainingModes
 
 torch.set_default_dtype(torch.float32)
 
@@ -237,37 +239,79 @@ def test_model(hypernet, testloader, device='cpu', verbose=False):
     return correct/len(testloader.dataset)*100
 
 
-def train_model(hypernet, optimizer, criterion, trainloader, epochs, device='cpu'):
+def batch_predict(network, loader, device='cpu'):
+    res = []
+    for i, data in enumerate(loader):
+        try:
+            images, labels, _ = data
+        except ValueError:
+            images, labels = data
+            
+        images = images.to(device)
+        labels = labels.to(device)
+        outputs = network(images)
+        res.append(outputs.cpu().detach().numpy())
+    return np.concatenate(res)
+
+
+def train_model(hypernet, 
+                optimizer, 
+                criterion, 
+                trainloader, 
+                epochs,
+                device='cpu',
+                verbose=True):
     mask_idx = 0
     masks = None
-    with trange(epochs) as t:
+    with trange(epochs, disable=not verbose) as t:
         for _ in t:
+            total_loss = 0
             hypernet.train()
-            for _, data in enumerate(trainloader):
+            for num, data in enumerate(trainloader):
                 try:
                     inputs, labels, _ = data
                 except ValueError:
                     inputs, labels = data
                 inputs = inputs.to(device)
                 labels = labels.to(device)
-                
-                masks = hypernet.test_mask[mask_idx].repeat(len(inputs), 1)
-                mask_idx = (mask_idx+1) % len(hypernet.test_mask)
 
-                optimizer.zero_grad()
+                if hypernet.mode == TrainingModes.SLOW_STEP:
+                    masks = hypernet.test_mask[mask_idx].repeat(len(inputs), 1)
+                    mask_idx = (mask_idx+1) % len(hypernet.test_mask)
 
-                outputs = hypernet(inputs, masks)
-                loss = criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
+                    optimizer.zero_grad()
+
+                    outputs = hypernet(inputs, masks)
+                    loss = criterion(outputs, labels)
+                    loss.backward()
+                    total_loss += loss.item()
+                    optimizer.step()
+                elif hypernet.mode == TrainingModes.CARTHESIAN:
+                    mask_order = np.arange(len(hypernet.test_mask))
+                    np.random.shuffle(mask_order)
+                    for mask_idx in mask_order:
+                        masks = hypernet.test_mask[mask_idx].repeat(len(inputs), 1)
+
+                        optimizer.zero_grad()
+
+                        outputs = hypernet(inputs, masks)
+                        loss = criterion(outputs, labels)
+                        loss.backward()
+                        total_loss += loss.item()
+                        
+                        optimizer.step()
+                    total_loss /= len(mask_order)
+            total_loss /= (num+1)
+    return total_loss
 
 def basic_train_loop(network, optimizer, criterion, trainloader, epochs, device="cpu"):
     for _ in range(epochs):
         network.train()
-        for _, data in enumerate(trainloader):
+        total_loss = 0
+        for i, data in enumerate(trainloader):
             inputs, labels = data
             inputs = inputs.to(device)
-            labels = labels.to(device)
+            labels = labels.to(device).view(-1, 1)
 
             optimizer.zero_grad()
 
@@ -275,38 +319,97 @@ def basic_train_loop(network, optimizer, criterion, trainloader, epochs, device=
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+            total_loss += loss.item()
+    return total_loss/(i+1)
 
-class GenericDataset(torch.utils.data.IterableDataset):
-    def __init__(self, data, shuffle: bool=False, samples_no: int=None):
+class GenericDataset(torch.utils.data.Dataset):
+    def __init__(self, data, samples_no: int=None):
         samples = samples_no or len(data[0])
         self.indices = np.arange(samples)
-        self.shuffle = True
-        if shuffle:
-            self.indices = np.random.permutation(self.indices)
         self.index = 0
         self.max_samples = samples
         self.data_x = data[0].to(torch.float32)
         self.data_y = data[1]
 
-    def __iter__(self):
-        if self.shuffle:
-            self.indices = np.random.permutation(self.indices)
-        while self.index < self.max_samples:
-            _idx = self.indices[self.index]
-            yield self.data_x[_idx], self.data_y[_idx]
-            self.index += 1
+    def __getitem__(self, idx):
+        return self.data_x[idx], self.data_y[idx]
     
     def __len__(self):
-        return self.data_x.shape[0]
+        return self.max_samples
     
-    
-# class OversamplingDataset(GenericDataset):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(self, *args, **kwargs)
-#         fractions = 
-    
-def get_dataloader(X, y, size=None, batch_size=32):
-    train_dataset = GenericDataset((X, y), size)
-    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=1)
+def get_dataloader(X, y, size=None, batch_size=32, shuffle=True):
+    train_dataset = GenericDataset((X, y))
+    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=1, shuffle=shuffle)
     
     return trainloader
+
+def train_carthesian(hypernet, optimizer, criterion, loaders, data_size, epochs, masks_no, tag="carthesian-hypernet", device='cuda:0', test_every=5):
+    experiment = Experiment(api_key=os.environ.get("COMET_KEY"), project_name="hypernetwork", display_summary_level=0)
+    experiment.add_tag(tag)
+    experiment.log_parameter("test_nodes", hypernet.test_nodes)
+    experiment.log_parameter("mask_size", hypernet.mask_size)
+    experiment.log_parameter("training_size", data_size)
+    experiment.log_parameter("masks_no", masks_no)
+    experiment.log_parameter("max_epochs", epochs)
+    experiment.log_parameter("check_val_every_n_epoch", test_every)
+
+    trainloader, testloader = loaders
+    
+    test_accs = []
+    test_loss = []
+    with trange(epochs) as t:
+        for epoch in t:
+            hypernet.train()
+            for i, data in enumerate(trainloader):
+                try:
+                    inputs, labels, _ = data
+                except ValueError:
+                    inputs, labels = data
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+                mask_order = np.arange(len(hypernet.test_mask))
+                np.random.shuffle(mask_order)
+                for mask_idx in mask_order:
+                    masks = hypernet.test_mask[mask_idx].view(1,-1)
+
+                    optimizer.zero_grad()
+
+                    outputs = hypernet(inputs, masks)
+                    loss = criterion(outputs, labels)
+                    loss.backward()
+                    optimizer.step()
+
+            denom = 0
+            correct = 0
+            total_loss = 0
+            hypernet.eval()
+            y_true = []
+            y_pred = []
+            if epoch%test_every==0 or epoch==epochs-1:
+                for i, data in enumerate(testloader):
+                    try:
+                        images, labels, _ = data
+                    except ValueError:
+                        images, labels = data
+                    images = images.to(device)
+                    labels = labels.to(device)
+
+                    denom += len(labels)
+
+                    outputs = hypernet(images)
+                    _, predicted = torch.max(outputs.data, 1)
+                    correct += (predicted == labels).sum().item()
+                    y_true.extend(labels.cpu().numpy().tolist())
+                    y_pred.extend(predicted.cpu().detach().numpy().tolist())
+                    total_loss += criterion(outputs, labels).item()
+
+                test_loss.append(total_loss/i)
+                test_accs.append(correct/denom*100)
+
+                t.set_postfix(test_acc=correct/denom*100, loss=total_loss/i)
+                experiment.log_metric("test_accuracy", correct/len(testloader.dataset)*100, step=epoch)
+                experiment.log_metric("test_f1", f1_score(y_true, y_pred))
+                experiment.log_metric("test_loss", test_loss[-1], step=epoch)
+                    
+    experiment.end()    
+    return max(test_accs), test_loss[np.argmax(test_accs)]
