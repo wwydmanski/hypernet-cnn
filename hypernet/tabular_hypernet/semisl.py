@@ -38,7 +38,7 @@ class DatasetUpsampler:
         return self.dataset[idx % self.real_len]
     
 
-def get_dataset(size=(100, 900), masked=False, mask_no=200, mask_size=700, shared_mask=False, batch_size=32, test_batch_size=32):
+def get_dataset(size=(100, 900), mask_no=200, mask_size=700, batch_size=32, test_batch_size=32, shuffle_train=True):
     mods = [transforms.ToTensor(), 
         transforms.Normalize((0.1307,), (0.3081,)),    #mean and std of MNIST
         transforms.Lambda(lambda x: torch.flatten(x))]
@@ -50,11 +50,6 @@ def get_dataset(size=(100, 900), masked=False, mask_no=200, mask_size=700, share
     sup_train_size = size[0]
     unsup_train_size = size[1]
     
-    if masked:
-        trainset = MaskedDataset(trainset, mask_no, mask_size)
-        testset = MaskedDataset(testset, mask_no, mask_size)
-        if shared_mask:
-            testset.masks = trainset.masks
     
     ## supervised training dataset
     indices = torch.arange(sup_train_size)
@@ -64,14 +59,14 @@ def get_dataset(size=(100, 900), masked=False, mask_no=200, mask_size=700, share
     sup_trainset = DatasetUpsampler(sup_trainset, unsup_train_size)
     
     sup_trainloader = torch.utils.data.DataLoader(sup_trainset, batch_size=batch_size,
-                                          shuffle=True, num_workers=2)
+                                          shuffle=shuffle_train, num_workers=2)
     
     ## unsupervised training dataset
     indices = torch.arange(unsup_train_size) + sup_train_size
     unsup_trainset = data_utils.Subset(trainset, indices)
     
     unsup_trainloader = torch.utils.data.DataLoader(unsup_trainset, batch_size=batch_size,
-                                          shuffle=True, num_workers=2)
+                                          shuffle=shuffle_train, num_workers=2)
     
     ## test labeled dataset
     testloader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
@@ -114,6 +109,7 @@ class TabSSLCrossEntropyLoss(torch.nn.Module):
         
         self.beta = beta
         self.unsup_target_wrapper = unsup_target_wrapper
+        self.threshold = None
     
     def forward(self, sup_input, unsup_input):
         sup_outputs1, sup_outputs2, sup_labels = sup_input
@@ -132,17 +128,19 @@ def train_semisl(hypernet, optimizer, criterion, loaders, data_size, epochs, mas
                     changing_beta=None,
                     log_to_comet=True,
                     experiment=None,
-                    tag="semi-slow-step-hypernet", 
+                    tags=["semi-slow-step-hypernet"], 
                     device='cuda:0', 
                     project_name="semi-hypernetwork",
-                    test_every=5):
+                    test_every=5,
+                    description=None,
+                    log_params={}):
     """ Train hypernetwork using 2 masks per iteration, one for x1 (sup & unsup), another for x2 (sup & unsup)"""
     trainloader, testloader = loaders
     
     if log_to_comet:
         if experiment is None:
             experiment = Experiment(api_key=os.environ.get("COMET_KEY"), project_name=project_name, display_summary_level=0)
-        experiment.add_tag(tag)
+        experiment.add_tags(tags)
         experiment.log_parameter("test_nodes", hypernet.test_nodes)
         experiment.log_parameter("mask_size", hypernet.mask_size)
         experiment.log_parameter("node_hidden_size", hypernet.node_hidden_size)
@@ -155,6 +153,14 @@ def train_semisl(hypernet, optimizer, criterion, loaders, data_size, epochs, mas
         experiment.log_parameter("unsupervised_target_wrapper", criterion.unsup_target_wrapper.__name__)
         experiment.log_parameter("train_batch_size", trainloader.batch_size)
         experiment.log_parameter("test_batch_size", testloader.batch_size)
+        experiment.log_parameter("self_sup_loss_threshold", criterion.threshold)
+        
+        for log_par_k in log_params.keys():
+            experiment.log_parameter(log_par_k, log_params[log_par_k])
+
+        
+        if description: 
+            experiment.log_text(description)      
     
     train_loss = []
     test_loss = []
@@ -268,7 +274,8 @@ def train_semisl(hypernet, optimizer, criterion, loaders, data_size, epochs, mas
                 if log_to_comet:
                     experiment.log_metric("test_accuracy", correct/len(testloader.dataset)*100, step=epoch)
                     experiment.log_metric("test_loss", test_loss[-1], step=epoch)
-                    
-                
-    experiment.end()
+    
+    if experiment:
+        experiment.end()
+                                 
     return max(test_accs), test_loss[np.argmax(test_accs)]
