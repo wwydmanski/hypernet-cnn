@@ -311,7 +311,7 @@ def basic_train_loop(network, optimizer, criterion, trainloader, epochs, device=
         for i, data in enumerate(trainloader):
             inputs, labels = data
             inputs = inputs.to(device)
-            labels = labels.to(device)
+            labels = labels.to(device).view(-1, 1)
 
             optimizer.zero_grad()
 

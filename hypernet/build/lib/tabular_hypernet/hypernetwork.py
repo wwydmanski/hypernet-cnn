@@ -207,7 +207,7 @@ class HypernetworkEmbeddings(Hypernetwork):
         print(out_dim)
         output_layer = torch.nn.Linear(out_dim[1], self.out_size)
         
-        self.test_mask = self._create_mask(self.test_nodes)
+        self.test_mask = self._create_mask(test_nodes)
         
         self.model.add_module("output_layer", output_layer)
         self.embeddings = torch.nn.Embedding(input_size, embedding_size, )
