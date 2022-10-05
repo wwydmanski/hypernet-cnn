@@ -36,9 +36,9 @@ class DatasetUpsampler:
             raise Error
             
         return self.dataset[idx % self.real_len]
-    
 
-def get_dataset(size=(100, 900), mask_no=200, mask_size=700, batch_size=32, test_batch_size=32, shuffle_train=True):
+    
+def get_train_test_sets():
     mods = [transforms.ToTensor(), 
         transforms.Normalize((0.1307,), (0.3081,)),    #mean and std of MNIST
         transforms.Lambda(lambda x: torch.flatten(x))]
@@ -46,6 +46,12 @@ def get_dataset(size=(100, 900), mask_no=200, mask_size=700, batch_size=32, test
     
     trainset = datasets.MNIST(root='./data/train', train=True, download=True, transform=mods)
     testset = datasets.MNIST(root='./data/test', train=False, download=True, transform=mods)
+    return trainset, testset
+
+
+def get_dataloaders(dataset, size=(100, 900), mask_no=200, mask_size=700, batch_size=32, test_batch_size=32, shuffle_train=True):
+    
+    trainset, testset = dataset
     
     sup_train_size = size[0]
     unsup_train_size = size[1]
@@ -97,7 +103,7 @@ class TrainDataLoaderSemi:
     
     
 
-class TabSSLCrossEntropyLoss(torch.nn.Module):
+class SSLCrossEntropyLoss(torch.nn.Module):
     def __init__(self, beta=0.1, unsup_target_wrapper=torch.nn.functional.softmax):
         super(TabSSLCrossEntropyLoss, self).__init__()
         
@@ -123,6 +129,63 @@ class TabSSLCrossEntropyLoss(torch.nn.Module):
         return self.supervised_loss + self.beta * self.self_supervised_loss
     
     
+class SSLCELossWithThreshold(torch.nn.Module):
+    def __init__(self, beta=0.1, unsup_target_wrapper=torch.nn.functional.softmax, threshold=None):
+        super(SSLCELossWithThreshold, self).__init__()
+        
+        self.y_f1 = torch.nn.CrossEntropyLoss()
+        self.y_f2 = torch.nn.CrossEntropyLoss()
+        
+        self.f1_f2 = torch.nn.CrossEntropyLoss()
+        self.f2_f1 = torch.nn.CrossEntropyLoss()
+        
+        self.beta = beta
+        self.unsup_target_wrapper = unsup_target_wrapper
+        self.threshold = threshold
+        
+    def is_observ_above_threshold(self, data):
+        mask = torch.any(data >= self.threshold, dim=1)
+        
+        return mask
+        
+    
+    def forward(self, sup_input, unsup_input):
+        sup_outputs1, sup_outputs2, sup_labels = sup_input
+        unsup_outputs1, unsup_outputs2 = unsup_input
+        
+        self.supervised_loss = self.y_f1(sup_outputs1, sup_labels) + self.y_f2(sup_outputs2, sup_labels)
+        
+        self.self_supervised_loss = 0
+        if self.beta:
+
+            if self.threshold:
+                unsup_outputs1_target = torch.nn.functional.softmax(unsup_outputs1, dim=1)
+                mask1 = self.is_observ_above_threshold(unsup_outputs1_target)
+
+                if len(unsup_outputs1_target[mask1]):
+                    unsup_outputs1_target = torch.argmax(unsup_outputs1_target[mask1], dim=1)
+                    self.self_supervised_loss += self.f2_f1(unsup_outputs2[mask1], unsup_outputs1_target)
+
+                unsup_outputs2_target = torch.nn.functional.softmax(unsup_outputs2, dim=1)
+                mask2 = self.is_observ_above_threshold(unsup_outputs2_target)
+
+                if len(unsup_outputs2_target[mask2]):
+                    unsup_outputs2_target = torch.argmax(unsup_outputs2_target[mask2], dim=1)
+                    self.self_supervised_loss += self.f1_f2(unsup_outputs1[mask2], unsup_outputs2_target)
+
+            else:
+                self.self_supervised_loss = self.f1_f2(unsup_outputs1, self.unsup_target_wrapper(unsup_outputs2, dim=1)) \
+                                    + self.f2_f1(unsup_outputs2, self.unsup_target_wrapper(unsup_outputs1, dim=1))      
+        
+        return self.supervised_loss + self.beta * self.self_supervised_loss
+
+    
+    
+    
+def permute(t):
+    idx = torch.randperm(t.shape[0])
+    return t[idx]
+    
 
 def train_semisl(hypernet, optimizer, criterion, loaders, data_size, epochs, masks_no,
                     changing_beta=None,
@@ -133,9 +196,13 @@ def train_semisl(hypernet, optimizer, criterion, loaders, data_size, epochs, mas
                     project_name="semi-hypernetwork",
                     test_every=5,
                     description=None,
-                    log_params={}):
+                    log_params={},
+                    shuffled_masks=True
+                ):
     """ Train hypernetwork using 2 masks per iteration, one for x1 (sup & unsup), another for x2 (sup & unsup)"""
     trainloader, testloader = loaders
+    
+    print('!! log to comet is', log_to_comet, '\n')
     
     if log_to_comet:
         if experiment is None:
@@ -143,7 +210,7 @@ def train_semisl(hypernet, optimizer, criterion, loaders, data_size, epochs, mas
         experiment.add_tags(tags)
         experiment.log_parameter("test_nodes", hypernet.test_nodes)
         experiment.log_parameter("mask_size", hypernet.mask_size)
-        experiment.log_parameter("node_hidden_size", hypernet.node_hidden_size)
+#         experiment.log_parameter("node_hidden_size", hypernet.node_hidden_size)
         experiment.log_parameter("lr", optimizer.defaults['lr'])
         experiment.log_parameter("training_size", sum(data_size))
         experiment.log_parameter("sup_train_size", data_size[0])
@@ -192,12 +259,21 @@ def train_semisl(hypernet, optimizer, criterion, loaders, data_size, epochs, mas
                 sup_labels = sup_labels.to(device)
                 unsup_inputs = unsup_inputs.to(device)
                 
+                
+                
                 ## f1
                 masks1 = []
-                for i in range(len(sup_inputs)):
+                for _ in range(len(sup_inputs)):
                     masks1.append(hypernet.test_mask[mask_idx])
                 masks1 = torch.stack(masks1).to(device)
-                mask_idx = (mask_idx+1) % len(hypernet.test_mask)
+                mask_idx += 1
+                
+                if shuffled_masks:
+                    if mask_idx >= len(hypernet.test_mask):
+                        hypernet.test_mask = permute(hypernet.test_mask)
+                        mask_idx = 0
+                else:
+                    mask_idx %= len(hypernet.test_mask)
                 
                 # supervised
                 sup_outputs1 = hypernet(sup_inputs, masks1)
@@ -207,10 +283,17 @@ def train_semisl(hypernet, optimizer, criterion, loaders, data_size, epochs, mas
         
                 ## f2
                 masks2 = []
-                for i in range(len(sup_inputs)):
+                for _ in range(len(sup_inputs)):
                     masks2.append(hypernet.test_mask[mask_idx])
                 masks2 = torch.stack(masks2).to(device)
-                mask_idx = (mask_idx+1) % len(hypernet.test_mask)
+                mask_idx += 1
+                
+                if shuffled_masks:
+                    if mask_idx >= len(hypernet.test_mask):
+                        hypernet.test_mask = permute(hypernet.test_mask)
+                        mask_idx = 0
+                else:
+                    mask_idx %= len(hypernet.test_mask)
                 
                 # supervised
                 sup_outputs2 = hypernet(sup_inputs, masks2)
