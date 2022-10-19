@@ -261,3 +261,12 @@ class HypernetworkPCA(Hypernetwork):
         pca = PCA(self.embedding_size)
         pca.fit(masks)
         return pca
+    
+
+class HypernetworkWithFeatureSelector(Hypernetwork):
+    def __init__(self, input_size=784, feature_selector=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.test_mask = feature_selector(self, self.test_nodes)
+        self._create_mask = lambda x: feature_selector(self, x)    
+    
