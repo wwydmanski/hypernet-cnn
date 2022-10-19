@@ -5,7 +5,7 @@ from .training_utils import get_dataloader, train_model, basic_train_loop
 class SimpleSklearnInterface:
     def __init__(self, network, batch_size=128, epochs=10, lr=3e-4, device="cuda:0", loss=torch.nn.CrossEntropyLoss()):
         self.network = network.to(device)
-        self.optimizer = torch.optim.Adamax(network.parameters(), lr=lr)
+        self.optimizer = torch.optim.Adam(network.parameters(), lr=lr)
         self.criterion = loss
         self.batch_size = batch_size
         self.epochs = epochs
