@@ -68,12 +68,13 @@ class SimpleSklearnInterface:
         return np.concatenate(res)
     
 class HypernetworkSklearnInterface:
-    def __init__(self, network, batch_size=128, epochs=10, lr=3e-4, device="cuda:0"):
+    def __init__(self, network, batch_size=128, epochs=10, lr=3e-4, device="cuda:0", verbose=True):
         self.network = network.to(device)
         self.optimizer = torch.optim.Adam(network.parameters(), lr=lr)
         self.criterion = torch.nn.CrossEntropyLoss()
         self.batch_size = batch_size
         self.epochs = epochs
+        self.verbose = verbose
 
     def fit(self, X, y):
         try:
@@ -89,6 +90,7 @@ class HypernetworkSklearnInterface:
             train_data,
             self.epochs,
             self.network.device,
+            verbose=self.verbose,
         )
 
     def predict(self, X):
