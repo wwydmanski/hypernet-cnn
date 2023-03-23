@@ -1,0 +1,1 @@
+{'n_estimators': 2650, 'max_features': 0.7, 'criterion': 'entropy', 'max_depth': 16}

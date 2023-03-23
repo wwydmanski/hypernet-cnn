@@ -1,0 +1,1 @@
+{'first_hidden_layer': 250, 'second_hidden_layer': 200, 'batch_size': 416, 'max_iter': 100}

@@ -1,0 +1,1 @@
+{'epochs': 100, 'masks_no': 70, 'mask_size': 25, 'target_size': 50, 'lr': 0.003, 'batch_size': 64}

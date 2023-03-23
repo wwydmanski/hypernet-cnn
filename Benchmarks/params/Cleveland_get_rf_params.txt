@@ -1,0 +1,4 @@
+{'n_estimators': 1550, 'max_features': None, 'criterion': 'gini', 'max_depth': None}, 81.01190476190477
+{'n_estimators': 1400, 'max_features': 'sqrt', 'criterion': 'gini', 'max_depth': 16}, 80.74404761904762
+{'n_estimators': 2650, 'max_features': 0.7, 'criterion': 'entropy', 'max_depth': 16}, 83.33333333333334
+{'n_estimators': 2300, 'max_features': 0.2, 'criterion': 'entropy', 'max_depth': 16}, 79.73214285714285

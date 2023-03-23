@@ -1,0 +1,1 @@
+{'n_est': 20, 'max_depth': 4, 'drop': 0.4036221563329964, 'n_layers': 4}{'n_est': 10, 'max_depth': 8, 'drop': 0.12998554484865188, 'n_layers': 4}

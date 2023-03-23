@@ -1,0 +1,1 @@
+{'n_estimators': 400, 'max_depth': 15, 'learning_rate': 0.012184536476648746, 'min_child_weight': 4, 'gamma': 1}{'n_estimators': 950, 'max_depth': 5, 'learning_rate': 0.003402179653895964, 'min_child_weight': 1, 'gamma': 0.001}{'n_estimators': 2150, 'max_depth': 10, 'learning_rate': 0.0004912549854491816, 'min_child_weight': 16, 'gamma': 0}

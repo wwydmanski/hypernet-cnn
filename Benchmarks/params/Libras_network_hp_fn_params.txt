@@ -1,0 +1,4 @@
+{'epochs': 100, 'masks_no': 60, 'mask_size': 35, 'target_size': 5, 'lr': 3e-05, 'batch_size': 32}, 67.95151515151515
+{'epochs': 150, 'masks_no': 70, 'mask_size': 25, 'target_size': 10, 'lr': 3e-05, 'batch_size': 64}, 76.55757575757575
+{'epochs': 100, 'masks_no': 30, 'mask_size': 25, 'target_size': 5, 'lr': 0.003, 'batch_size': 32}, 66.82424242424244
+{'epochs': 100, 'masks_no': 70, 'mask_size': 25, 'target_size': 50, 'lr': 0.003, 'batch_size': 64}, 85.74545454545455

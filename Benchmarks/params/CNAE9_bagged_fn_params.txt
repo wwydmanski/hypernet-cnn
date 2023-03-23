@@ -1,0 +1,11 @@
+{'first_hidden_layer': 50, 'second_hidden_layer': 50, 'batch_size': 32, 'max_iter': 50}, 94.07407407407406
+{'first_hidden_layer': 150, 'second_hidden_layer': 200, 'batch_size': 448, 'max_iter': 50}, 94.19753086419753
+{'first_hidden_layer': 100, 'second_hidden_layer': 100, 'batch_size': 384, 'max_iter': 50}, 94.19753086419753
+{'first_hidden_layer': 300, 'second_hidden_layer': 400, 'batch_size': 160, 'max_iter': 250}, 93.33333333333333
+{'first_hidden_layer': 400, 'second_hidden_layer': 450, 'batch_size': 352, 'max_iter': 250}, 93.88888888888889
+{'first_hidden_layer': 300, 'second_hidden_layer': 300, 'batch_size': 448, 'max_iter': 50}, 94.01234567901234
+{'first_hidden_layer': 200, 'second_hidden_layer': 200, 'batch_size': 320, 'max_iter': 50}, 94.38271604938271
+{'first_hidden_layer': 250, 'second_hidden_layer': 200, 'batch_size': 320, 'max_iter': 50}, 94.38271604938271
+{'first_hidden_layer': 50, 'second_hidden_layer': 50, 'batch_size': 288, 'max_iter': 50}, 94.25925925925927
+{'first_hidden_layer': 50, 'second_hidden_layer': 400, 'batch_size': 512, 'max_iter': 50}, 92.77777777777776
+{'first_hidden_layer': 200, 'second_hidden_layer': 150, 'batch_size': 320, 'max_iter': 50}, 94.32098765432099
