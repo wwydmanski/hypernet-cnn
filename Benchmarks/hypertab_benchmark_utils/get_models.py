@@ -182,7 +182,7 @@ def get_parametrized_hypertab_pca_fn(*, DEVICE, n_classes):
                         ).to(DEVICE)    
             hypernet = hypernet.train()
 
-            network = HypernetworkSklearnInterface(hypernet, device=DEVICE, epochs=epochs, batch_size=batch_size, verbose=verbose, lr=lr, device=DEVICE)
+            network = HypernetworkSklearnInterface(hypernet, device=DEVICE, epochs=epochs, batch_size=batch_size, verbose=verbose, lr=lr)
             return network
         return _inner
     return network_pca_fn
@@ -206,7 +206,7 @@ def get_parametrized_hypertab_fn(*, DEVICE, n_classes, n_features):
                         ).to(DEVICE)    
             hypernet = hypernet.train()
 
-            network = HypernetworkSklearnInterface(hypernet, device=DEVICE, epochs=epochs, batch_size=batch_size, verbose=verbose, lr=lr, device=DEVICE)
+            network = HypernetworkSklearnInterface(hypernet, device=DEVICE, epochs=epochs, batch_size=batch_size, verbose=verbose, lr=lr)
             return network
         return _inner
     return network_hp_fn
