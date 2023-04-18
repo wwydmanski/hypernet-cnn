@@ -178,6 +178,7 @@ def get_parametrized_hypertab_pca_fn(*, DEVICE, n_classes):
                                 torch.nn.ReLU(),
                             ),
                             mode=TrainingModes.CARTHESIAN,
+                            device=DEVICE,
                             input_size=n_features
                         ).to(DEVICE)    
             hypernet = hypernet.train()
@@ -203,6 +204,7 @@ def get_parametrized_hypertab_fn(*, DEVICE, n_classes, n_features):
                                 torch.nn.ReLU(),
                             ),
                             mode=TrainingModes.CARTHESIAN,
+                            device=DEVICE,
                         ).to(DEVICE)    
             hypernet = hypernet.train()
 
