@@ -114,7 +114,7 @@ def get_parametrized_dropout_net1(*, DEVICE, n_features, n_classes):
                             torch.nn.Linear(64, n_classes)
                         ).to(DEVICE).train()
 
-            network = SimpleSklearnInterface(network, epochs=epochs, batch_size=batch_size, lr=lr)
+            network = SimpleSklearnInterface(network, epochs=epochs, batch_size=batch_size, lr=lr, device=DEVICE)
             return network
         return _inner
     return network_fn1
@@ -134,7 +134,7 @@ def get_parametrized_dropout_net2(*, DEVICE, n_features, n_classes):
                             torch.nn.Linear(64, n_classes)
                         ).to(DEVICE).train()
 
-            network = SimpleSklearnInterface(network, epochs=epochs, batch_size=batch_size, lr=lr)
+            network = SimpleSklearnInterface(network, epochs=epochs, batch_size=batch_size, lr=lr, device=DEVICE)
             return network
         return _inner
     return network_fn2
@@ -157,7 +157,7 @@ def get_parametrized_dropout_net3(*, DEVICE, n_features, n_classes):
                             torch.nn.Linear(64, n_classes)
                         ).to(DEVICE).train()
 
-            network = SimpleSklearnInterface(network, epochs=epochs, batch_size=batch_size, lr=lr)
+            network = SimpleSklearnInterface(network, epochs=epochs, batch_size=batch_size, lr=lr, device=DEVICE)
             return network
         return _inner
     return network_fn3
@@ -182,7 +182,7 @@ def get_parametrized_hypertab_pca_fn(*, DEVICE, n_classes):
                         ).to(DEVICE)    
             hypernet = hypernet.train()
 
-            network = HypernetworkSklearnInterface(hypernet, device=DEVICE, epochs=epochs, batch_size=batch_size, verbose=verbose, lr=lr)
+            network = HypernetworkSklearnInterface(hypernet, device=DEVICE, epochs=epochs, batch_size=batch_size, verbose=verbose, lr=lr, device=DEVICE)
             return network
         return _inner
     return network_pca_fn
@@ -206,7 +206,7 @@ def get_parametrized_hypertab_fn(*, DEVICE, n_classes, n_features):
                         ).to(DEVICE)    
             hypernet = hypernet.train()
 
-            network = HypernetworkSklearnInterface(hypernet, device=DEVICE, epochs=epochs, batch_size=batch_size, verbose=verbose, lr=lr)
+            network = HypernetworkSklearnInterface(hypernet, device=DEVICE, epochs=epochs, batch_size=batch_size, verbose=verbose, lr=lr, device=DEVICE)
             return network
         return _inner
     return network_hp_fn
