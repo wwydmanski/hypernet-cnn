@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-
+import sklearn.datasets
 
 def get_data(dataset_name):
     DATA = dataset_name
@@ -76,7 +76,39 @@ def get_data(dataset_name):
         #(1080, 855) 2
         print(X.shape, len(np.unique(y)))
         
-    
+    elif DATA == "BreastCancer":
+        dataset = sklearn.datasets.load_breast_cancer()
+        X = dataset['data']
+        y = dataset['target']
+
+    elif DATA == "Connectionist":
+        dataset = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/undocumented/connectionist-bench/sonar/sonar.all-data", header=None)
+        X = dataset.values[:, :-1].astype(float)
+        y = dataset.values[:, -1]
+        y = LabelEncoder().fit_transform(y)
+
+    elif DATA == "Dermatology":
+        dataset = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/dermatology/dermatology.data", header=None, na_values="?").dropna()
+        X = dataset.values[:, :-1].astype(float)
+        y = dataset.values[:, -1].astype(int) - 1
+        
+    elif DATA == "Glass":
+        dataset = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/glass/glass.data", header=None, na_values="?").dropna()
+        X = dataset.values[:, :-1].astype(float)
+        y = dataset.values[:, -1].astype(int)
+        y = LabelEncoder().fit_transform(y).astype(int)
+        
+    elif DATA == "Cleveland":
+        dataset = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data", header=None, na_values="?").dropna()
+        X = dataset.values[:, :-1].astype(float)
+        y = dataset.values[:, -1].astype(int)
+        y = LabelEncoder().fit_transform(y).astype(int)
+
+    elif DATA == "CNAE9":
+        dataset = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/00233/CNAE-9.data", header=None, na_values="?").dropna()
+        X = dataset.values[:, 1:].astype(float)
+        y = dataset.values[:, 0].astype(int)
+        y = LabelEncoder().fit_transform(y).astype(int)
     return X, y
         
         

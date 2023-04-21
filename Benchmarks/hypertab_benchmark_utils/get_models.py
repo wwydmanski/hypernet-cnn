@@ -1,11 +1,12 @@
+import sys
+sys.path.append("./")
 import node
 from qhoptim.pyt import QHAdam
 
 from sklearn.ensemble import RandomForestClassifier
 import torch
-from tabular_hypernet import HypernetworkPCA, TrainingModes, Hypernetwork
-from tabular_hypernet.modules import SimpleNetwork
-from tabular_hypernet.interfaces import HypernetworkSklearnInterface, SimpleSklearnInterface
+from hypertab import HypernetworkPCA, TrainingModes, Hypernetwork
+from hypertab.interfaces import HypernetworkSklearnInterface, SimpleSklearnInterface
 from xgboost import XGBClassifier
 import numpy as np
 from sklearn.ensemble import BaggingClassifier, VotingClassifier
