@@ -145,14 +145,14 @@ def get_parametrized_dropout_net2(*, DEVICE, n_features, n_classes):
 
 
 def get_parametrized_dropout_net3(*, DEVICE, n_features, n_classes):
-    def network_fn3(epochs=100, drop1=0.3, drop2=0.5, drop3=0.5, drop4=0.5, batch_size=32, lr=3e-4):
+    def network_fn3(epochs=100, drop1=0.3, drop2=0.5, drop3=0.5, drop4=0.5, batch_size=32, lr=3e-4, first_hidden_layer=64):
         def _inner():
             network = torch.nn.Sequential(
                             torch.nn.Dropout(drop1),
-                            torch.nn.Linear(n_features, 64),
+                            torch.nn.Linear(n_features, first_hidden_layer),
                             torch.nn.ReLU(),
                             torch.nn.Dropout(drop2),
-                            torch.nn.Linear(64, 128),
+                            torch.nn.Linear(first_hidden_layer, 128),
                             torch.nn.ReLU(),
                             torch.nn.Dropout(drop3),
                             torch.nn.Linear(128, 64),
